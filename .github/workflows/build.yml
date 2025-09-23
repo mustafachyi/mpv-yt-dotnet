@@ -24,7 +24,7 @@ jobs:
         (Get-Content MpvYt.csproj) -replace '<PublishReadyToRun>false</PublishReadyToRun>', '' | Set-Content MpvYt.csproj
 
     - name: Publish Native AOT
-      run: dotnet publish -c Release -r win-x64 /p:PublishAot=true
+      run: dotnet publish -c Release -r win-x64 /p:PublishAot=true /p:TrimMode=full
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
