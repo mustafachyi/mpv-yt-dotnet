@@ -1,0 +1,33 @@
+name: .NET Build
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Correct Project File for AOT
+      run: |
+        (Get-Content MpvYt.csproj) -replace '<PublishSingleFile>true</PublishSingleFile>', '' | Set-Content MpvYt.csproj
+        (Get-Content MpvYt.csproj) -replace '<PublishReadyToRun>false</PublishReadyToRun>', '' | Set-Content MpvYt.csproj
+
+    - name: Publish Native AOT
+      run: dotnet publish -c Release -r win-x64 /p:PublishAot=true
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: play-win-x64
+        path: bin/Release/net8.0/win-x64/publish/
