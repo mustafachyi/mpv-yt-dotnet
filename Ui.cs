@@ -98,6 +98,13 @@ public static class Ui
             return stream;
         }
 
+        int defaultIndex = audios.FindIndex(a => a.IsDefault);
+        if (defaultIndex == -1)
+        {
+            int englishIndex = audios.FindIndex(a => a.Language.StartsWith("en", StringComparison.OrdinalIgnoreCase));
+            defaultIndex = (englishIndex != -1) ? englishIndex : 0;
+        }
+
         if (!string.IsNullOrWhiteSpace(langPref))
         {
             var match = audios.Find(a => a.Language.Equals(langPref, StringComparison.OrdinalIgnoreCase))
@@ -109,25 +116,12 @@ public static class Ui
                 return match;
             }
             
-            int defaultIndex = audios.FindIndex(a => a.IsDefault);
-            if (defaultIndex == -1)
-            {
-                int englishIndex = audios.FindIndex(a => a.Language.StartsWith("en", StringComparison.OrdinalIgnoreCase));
-                defaultIndex = (englishIndex != -1) ? englishIndex : 0;
-            }
             var defaultStream = audios[defaultIndex];
             Console.WriteLine($"Audio: Language '{langPref}' not found. Using default -> {defaultStream.Name} ({FormatBitrate(defaultStream.Bitrate)})");
             return defaultStream;
         }
 
         Console.WriteLine("\nAudio Track");
-        int defaultIndex = audios.FindIndex(a => a.IsDefault);
-        if (defaultIndex == -1)
-        {
-            int englishIndex = audios.FindIndex(a => a.Language.StartsWith("en", StringComparison.OrdinalIgnoreCase));
-            defaultIndex = (englishIndex != -1) ? englishIndex : 0;
-        }
-
         var languageGroups = audios.GroupBy(a => GetNormalizedLanguageName(a.Language)).ToDictionary(g => g.Key, g => g.Count());
 
         for (int i = 0; i < audios.Count; i++)
