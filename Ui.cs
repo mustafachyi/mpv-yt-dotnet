@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace MpvYt;
 
 public static class Ui
@@ -12,6 +14,7 @@ public static class Ui
     {
         if (audioOnly)
         {
+            Console.Clear();
             var audio = SelectAudio(data.Audios, langPref);
             return audio is not null ? new AudioSelection(audio) : null;
         }
@@ -26,6 +29,7 @@ public static class Ui
         var video = SelectVideo(data.Videos, qualityPref);
         if (video is null) return null;
 
+        Console.Clear();
         var selectedAudio = SelectAudio(data.Audios, langPref);
         return selectedAudio is not null ? new VideoSelection(video, selectedAudio) : null;
     }
@@ -80,30 +84,33 @@ public static class Ui
 
         if (!string.IsNullOrWhiteSpace(langPref))
         {
-            var match = audios.Find(a => a.Language.Equals(langPref, StringComparison.OrdinalIgnoreCase));
+            var match = audios.Find(a => a.Language.Equals(langPref, StringComparison.OrdinalIgnoreCase))
+                        ?? audios.Find(a => a.Language.StartsWith(langPref, StringComparison.OrdinalIgnoreCase));
+
             if (match is not null) return match;
 
-            Console.WriteLine($"Warning: Language '{langPref}' not found. Attempting to fall back to English.");
-            var englishFallback = audios.Find(a => a.Language.Equals("en", StringComparison.OrdinalIgnoreCase));
-            if (englishFallback is not null) return englishFallback;
-
-            Console.WriteLine($"Warning: English track not found. Playing first available track ('{audios[0].Name}').");
-            return audios[0];
+            Console.WriteLine($"Warning: Language '{langPref}' not found. Falling back to default selection.");
         }
+
+        int defaultIndex = audios.FindIndex(a => a.IsDefault);
+        if (defaultIndex == -1)
+        {
+            int englishIndex = audios.FindIndex(a => a.Language.StartsWith("en", StringComparison.OrdinalIgnoreCase));
+            defaultIndex = (englishIndex != -1) ? englishIndex : 0;
+        }
+
+        var languageGroups = audios.GroupBy(a => GetNormalizedLanguageName(a.Language)).ToDictionary(g => g.Key, g => g.Count());
 
         Console.WriteLine("Available audio languages:");
-        int defaultIndex = 0;
-        var englishIndex = audios.FindIndex(a => a.Language.Equals("en", StringComparison.OrdinalIgnoreCase));
-        if (englishIndex != -1)
-        {
-            defaultIndex = englishIndex;
-        }
-
         for (int i = 0; i < audios.Count; i++)
         {
             var a = audios[i];
             string indicator = (i == defaultIndex) ? " (default)" : "";
-            Console.WriteLine($"{i + 1}) {a.Name} ({a.Language}) ({a.Bitrate / 1000} kbps){indicator}");
+            string normalizedName = GetNormalizedLanguageName(a.Language);
+            
+            string displayName = languageGroups[normalizedName] > 1 ? $"{normalizedName} ({a.Name})" : normalizedName;
+
+            Console.WriteLine($"{i + 1}) {displayName} ({a.Bitrate / 1000} kbps){indicator}");
         }
         Console.Write($"Select language [1-{audios.Count}, default: {defaultIndex + 1}]: ");
         string? line = Console.ReadLine();
@@ -114,5 +121,22 @@ public static class Ui
             return audios[choice - 1];
         }
         return null;
+    }
+
+    private static string GetNormalizedLanguageName(string langCode)
+    {
+        if (string.IsNullOrWhiteSpace(langCode) || langCode.Equals("und", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Original";
+        }
+        try
+        {
+            var culture = new CultureInfo(langCode);
+            return culture.EnglishName;
+        }
+        catch (CultureNotFoundException)
+        {
+            return langCode;
+        }
     }
 }

@@ -7,6 +7,8 @@ public static class Mpv
 {
     public static void Launch(string title, VideoStream? video, AudioStream audio)
     {
+        Console.Clear();
+        
         string mpvExecutable = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "mpv.exe" : "mpv";
         
         var processStartInfo = new ProcessStartInfo(mpvExecutable)
@@ -30,7 +32,7 @@ public static class Mpv
         {
             processStartInfo.ArgumentList.Add(audio.Url);
             processStartInfo.ArgumentList.Add("--force-window");
-            Console.WriteLine($"Playing: {title} [audio only / {audio.Name}]");
+            Console.WriteLine($"Playing: {title} [Audio only / {audio.Name}]");
         }
 
         try
