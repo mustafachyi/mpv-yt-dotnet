@@ -37,6 +37,14 @@ return await rootCommand.InvokeAsync(args);
 
 static async Task MainLogic(string? identifier, string? quality, string? language, bool audioOnly)
 {
+    if (!Mpv.IsAvailable())
+    {
+        Console.Error.WriteLine("Error: 'mpv' executable not found in your system's PATH.");
+        Console.Error.WriteLine("Please install mpv and ensure its location is included in the PATH environment variable.");
+        Environment.Exit(1);
+        return;
+    }
+    
     try
     {
         string id = identifier ?? Ui.GetIdentifierFromInput();

@@ -5,6 +5,28 @@ namespace MpvYt;
 
 public static class Mpv
 {
+    public static bool IsAvailable()
+    {
+        string mpvExecutable = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "mpv.exe" : "mpv";
+        string? pathVar = Environment.GetEnvironmentVariable("PATH");
+
+        if (pathVar is null)
+        {
+            return false;
+        }
+
+        foreach (string path in pathVar.Split(Path.PathSeparator))
+        {
+            string fullPath = Path.Combine(path, mpvExecutable);
+            if (File.Exists(fullPath))
+            {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
     public static void Launch(string title, VideoStream? video, AudioStream audio)
     {
         Console.Clear();
