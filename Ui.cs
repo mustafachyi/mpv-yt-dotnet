@@ -14,7 +14,6 @@ public static class Ui
     {
         if (audioOnly)
         {
-            Console.Clear();
             var audio = SelectAudio(data.Audios, langPref);
             return audio is not null ? new AudioSelection(audio) : null;
         }
@@ -29,57 +28,74 @@ public static class Ui
         var video = SelectVideo(data.Videos, qualityPref);
         if (video is null) return null;
 
-        Console.Clear();
         var selectedAudio = SelectAudio(data.Audios, langPref);
         return selectedAudio is not null ? new VideoSelection(video, selectedAudio) : null;
     }
 
     private static VideoStream? SelectVideo(List<VideoStream> videos, string? qualityPref)
     {
-        if (string.IsNullOrWhiteSpace(qualityPref))
+        if (!string.IsNullOrWhiteSpace(qualityPref))
         {
-            Console.WriteLine("Available video qualities:");
-            for (int i = 0; i < videos.Count; i++)
+            if (qualityPref.Equals("highest", StringComparison.OrdinalIgnoreCase))
             {
-                var v = videos[i];
-                string indicator = (i == 0) ? " (highest)" : "";
-                Console.WriteLine($"{i + 1}) {v.Quality}{indicator} ({v.Bitrate / 1000} kbps)");
+                var stream = videos[0];
+                Console.WriteLine($"Video: Selected 'highest' -> {stream.Quality} ({FormatBitrate(stream.Bitrate)})");
+                return stream;
             }
-            Console.Write($"Select quality [1-{videos.Count}, default: 1]: ");
-            string? line = Console.ReadLine();
-            if (string.IsNullOrWhiteSpace(line)) return videos[0];
-            if (int.TryParse(line, out int choice) && choice >= 1 && choice <= videos.Count)
+            if (qualityPref.Equals("lowest", StringComparison.OrdinalIgnoreCase))
             {
-                return videos[choice - 1];
+                var stream = videos[^1];
+                Console.WriteLine($"Video: Selected 'lowest' -> {stream.Quality} ({FormatBitrate(stream.Bitrate)})");
+                return stream;
             }
-            return null;
+
+            var match = videos.Find(v => v.Quality.Equals(qualityPref, StringComparison.OrdinalIgnoreCase));
+            if (match is not null)
+            {
+                Console.WriteLine($"Video: Matched quality -> {match.Quality} ({FormatBitrate(match.Bitrate)})");
+                return match;
+            }
+
+            if (!int.TryParse(string.Concat(qualityPref.Where(char.IsDigit)), out int requestedQualityNum))
+            {
+                var stream = videos[0];
+                Console.WriteLine($"Video: Could not parse '{qualityPref}'. Using highest available: {stream.Quality} ({FormatBitrate(stream.Bitrate)})");
+                return stream;
+            }
+
+            var closestStream = videos
+                .OrderBy(v => Math.Abs(int.Parse(string.Concat(v.Quality.Where(char.IsDigit))) - requestedQualityNum))
+                .First();
+            
+            Console.WriteLine($"Video: Quality '{qualityPref}' not found. Using closest: {closestStream.Quality} ({FormatBitrate(closestStream.Bitrate)})");
+            return closestStream;
         }
 
-        if (qualityPref.Equals("highest", StringComparison.OrdinalIgnoreCase)) return videos[0];
-        if (qualityPref.Equals("lowest", StringComparison.OrdinalIgnoreCase)) return videos[^1];
-
-        var match = videos.Find(v => v.Quality.Equals(qualityPref, StringComparison.OrdinalIgnoreCase));
-        if (match is not null) return match;
-
-        if (!int.TryParse(string.Concat(qualityPref.Where(char.IsDigit)), out int requestedQualityNum))
+        Console.WriteLine("Video Quality");
+        for (int i = 0; i < videos.Count; i++)
         {
-            Console.WriteLine($"Warning: Could not parse quality '{qualityPref}'. Playing highest available quality ('{videos[0].Quality}') instead.");
-            return videos[0];
+            var v = videos[i];
+            string indicator = (i == 0) ? " (highest)" : "";
+            Console.WriteLine($"  {i + 1}) {v.Quality,-7} ({FormatBitrate(v.Bitrate)}){indicator}");
         }
-
-        var closestStream = videos
-            .OrderBy(v => Math.Abs(int.Parse(string.Concat(v.Quality.Where(char.IsDigit))) - requestedQualityNum))
-            .First();
-        
-        Console.WriteLine($"Warning: Quality '{qualityPref}' not found. Playing closest available quality ('{closestStream.Quality}') instead.");
-        return closestStream;
+        Console.Write("> Select video [1]: ");
+        string? line = Console.ReadLine();
+        if (string.IsNullOrWhiteSpace(line)) return videos[0];
+        if (int.TryParse(line, out int choice) && choice >= 1 && choice <= videos.Count)
+        {
+            return videos[choice - 1];
+        }
+        Console.Error.WriteLine("Invalid selection.");
+        return null;
     }
 
     private static AudioStream? SelectAudio(List<AudioStream> audios, string? langPref)
     {
         if (audios.Count == 1)
         {
-            return audios[0];
+            var stream = audios[0];
+            Console.WriteLine($"Audio: Only one track available -> {stream.Name} ({FormatBitrate(stream.Bitrate)})");
+            return stream;
         }
 
         if (!string.IsNullOrWhiteSpace(langPref))
@@ -87,11 +103,24 @@ public static class Ui
             var match = audios.Find(a => a.Language.Equals(langPref, StringComparison.OrdinalIgnoreCase))
                         ?? audios.Find(a => a.Language.StartsWith(langPref, StringComparison.OrdinalIgnoreCase));
 
-            if (match is not null) return match;
-
-            Console.WriteLine($"Warning: Language '{langPref}' not found. Falling back to default selection.");
+            if (match is not null)
+            {
+                Console.WriteLine($"Audio: Matched language '{langPref}' -> {match.Name} ({FormatBitrate(match.Bitrate)})");
+                return match;
+            }
+            
+            int defaultIndex = audios.FindIndex(a => a.IsDefault);
+            if (defaultIndex == -1)
+            {
+                int englishIndex = audios.FindIndex(a => a.Language.StartsWith("en", StringComparison.OrdinalIgnoreCase));
+                defaultIndex = (englishIndex != -1) ? englishIndex : 0;
+            }
+            var defaultStream = audios[defaultIndex];
+            Console.WriteLine($"Audio: Language '{langPref}' not found. Using default -> {defaultStream.Name} ({FormatBitrate(defaultStream.Bitrate)})");
+            return defaultStream;
         }
 
+        Console.WriteLine("\nAudio Track");
         int defaultIndex = audios.FindIndex(a => a.IsDefault);
         if (defaultIndex == -1)
         {
@@ -101,7 +130,6 @@ public static class Ui
 
         var languageGroups = audios.GroupBy(a => GetNormalizedLanguageName(a.Language)).ToDictionary(g => g.Key, g => g.Count());
 
-        Console.WriteLine("Available audio languages:");
         for (int i = 0; i < audios.Count; i++)
         {
             var a = audios[i];
@@ -110,9 +138,9 @@ public static class Ui
             
             string displayName = languageGroups[normalizedName] > 1 ? $"{normalizedName} ({a.Name})" : normalizedName;
 
-            Console.WriteLine($"{i + 1}) {displayName} ({a.Bitrate / 1000} kbps){indicator}");
+            Console.WriteLine($"  {i + 1}) {displayName,-25} ({FormatBitrate(a.Bitrate)}){indicator}");
         }
-        Console.Write($"Select language [1-{audios.Count}, default: {defaultIndex + 1}]: ");
+        Console.Write($"> Select audio [{defaultIndex + 1}]: ");
         string? line = Console.ReadLine();
 
         if (string.IsNullOrWhiteSpace(line)) return audios[defaultIndex];
@@ -120,6 +148,7 @@ public static class Ui
         {
             return audios[choice - 1];
         }
+        Console.Error.WriteLine("Invalid selection.");
         return null;
     }
 
@@ -138,5 +167,14 @@ public static class Ui
         {
             return langCode;
         }
+    }
+    
+    private static string FormatBitrate(long bitrate)
+    {
+        if (bitrate < 1_000_000)
+        {
+            return $"{bitrate / 1000} kbps";
+        }
+        return $"{(double)bitrate / 1_000_000:F1} Mbps";
     }
 }

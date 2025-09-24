@@ -57,11 +57,16 @@ static async Task MainLogic(string? identifier, string? quality, string? languag
 
         Console.WriteLine($"Fetching video data for '{videoId}'...");
         var playerData = await YouTube.GetPlayerDataAsync(videoId);
+
+        Console.Clear();
+        Console.WriteLine(playerData.Title);
+        Console.WriteLine(new string('─', Math.Min(Console.WindowWidth - 1, playerData.Title.Length)));
+        Console.WriteLine();
+
         var selectedStream = Ui.GetStreamSelection(playerData, quality, language, audioOnly);
 
         if (selectedStream is null)
         {
-            Console.WriteLine("No stream selected.");
             Environment.Exit(0);
             return;
         }

@@ -26,13 +26,13 @@ public static class Mpv
         {
             processStartInfo.ArgumentList.Add(video.Url);
             processStartInfo.ArgumentList.Add($"--audio-file={audio.Url}");
-            Console.WriteLine($"Playing: {title} [{video.Quality} / {audio.Name}]");
+            Console.WriteLine($"\nPlaying: {title} [{video.Quality} / {audio.Name}]");
         }
         else
         {
             processStartInfo.ArgumentList.Add(audio.Url);
             processStartInfo.ArgumentList.Add("--force-window");
-            Console.WriteLine($"Playing: {title} [Audio only / {audio.Name}]");
+            Console.WriteLine($"\nPlaying: {title} [Audio only / {audio.Name}]");
         }
 
         try
