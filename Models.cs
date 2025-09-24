@@ -4,7 +4,7 @@ public record Stream(string Url, long Bitrate);
 
 public record VideoStream(string Url, long Bitrate, string Quality) : Stream(Url, Bitrate);
 
-public record AudioStream(string Url, long Bitrate, string Language, string Name) : Stream(Url, Bitrate);
+public record AudioStream(string Url, long Bitrate, string Language, string Name, bool IsDefault) : Stream(Url, Bitrate);
 
 public record PlayerData(string Title, List<VideoStream> Videos, List<AudioStream> Audios);
 
