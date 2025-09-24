@@ -89,6 +89,7 @@ public static partial class YouTube
 
             var videoDetails = apiResponse?.VideoDetails;
             var streamingData = apiResponse?.StreamingData;
+            var captions = apiResponse?.Captions;
 
             if (streamingData is null || string.IsNullOrWhiteSpace(videoDetails?.Title))
             {
@@ -99,13 +100,13 @@ public static partial class YouTube
                 return (null, "Live streams are not supported.");
             }
 
-            var (videos, audio) = Parser.ParseStreams(streamingData.Value);
-            if (audio is null)
+            var (videos, audios) = Parser.ParseStreams(streamingData.Value, captions);
+            if (audios.Count == 0)
             {
-                return (null, "No audio stream available for this video.");
+                return (null, "No audio streams available for this video.");
             }
 
-            return (new PlayerData(videoDetails.Title.Trim(), videos, audio), null);
+            return (new PlayerData(videoDetails.Title.Trim(), videos, audios), null);
         }
         catch (Exception e)
         {
@@ -152,7 +153,7 @@ public static partial class YouTube
     }
 }
 
-internal record ApiResponse(PlayabilityStatus? PlayabilityStatus, VideoDetails? VideoDetails, JsonElement? StreamingData);
+internal record ApiResponse(PlayabilityStatus? PlayabilityStatus, VideoDetails? VideoDetails, JsonElement? StreamingData, JsonElement? Captions);
 internal record PlayabilityStatus(string? Status, string? Reason);
 internal record VideoDetails(string? Title, bool IsLiveContent);
 

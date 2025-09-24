@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace MpvYt;
 
 public static class Parser
@@ -15,31 +17,29 @@ public static class Parser
         { 138, "4320p" }, { 272, "4320p" }, { 402, "4320p" }, { 571, "4320p" },
     };
 
-    public static (List<VideoStream> Videos, Stream? Audio) ParseStreams(object streamingDataObject)
+    public static (List<VideoStream> Videos, List<AudioStream> Audios) ParseStreams(JsonElement streamingData, JsonElement? captions)
     {
-        var streamingData = (System.Text.Json.JsonElement)streamingDataObject;
-        if (!streamingData.TryGetProperty("adaptiveFormats", out var formatsElement) || formatsElement.ValueKind != System.Text.Json.JsonValueKind.Array)
+        if (!streamingData.TryGetProperty("adaptiveFormats", out var formatsElement) || formatsElement.ValueKind != JsonValueKind.Array)
         {
-            return ([], null);
+            return ([], []);
         }
 
         var videoStreams = new Dictionary<string, VideoStream>();
-        Stream? bestAudio = null;
+        var audioStreamsByItag = new Dictionary<int, Stream>();
 
         foreach (var format in formatsElement.EnumerateArray())
         {
             if (!format.TryGetProperty("url", out var urlElement) || urlElement.GetString() is not { } url) continue;
             if (!format.TryGetProperty("bitrate", out var bitrateElement) || !bitrateElement.TryGetInt64(out var bitrate)) continue;
-            
+            if (!format.TryGetProperty("itag", out var itagElement) || !itagElement.TryGetInt32(out var itag)) continue;
+
             var mimeType = format.TryGetProperty("mimeType", out var mimeElement) ? mimeElement.GetString() : "";
             bool isVideo = mimeType?.Contains("video/") == true;
             bool isAudio = mimeType?.Contains("audio/") == true;
 
             if (isVideo)
             {
-                if (!format.TryGetProperty("itag", out var itagElement) || !itagElement.TryGetInt32(out var itag)) continue;
                 if (!ItagQualityMap.TryGetValue(itag, out var quality)) continue;
-
                 if (!videoStreams.TryGetValue(quality, out var existing) || bitrate > existing.Bitrate)
                 {
                     videoStreams[quality] = new VideoStream(url, bitrate, quality);
@@ -47,14 +47,40 @@ public static class Parser
             }
             else if (isAudio)
             {
-                if (bestAudio is null || bitrate > bestAudio.Bitrate)
+                audioStreamsByItag[itag] = new Stream(url, bitrate);
+            }
+        }
+
+        var parsedAudios = new List<AudioStream>();
+        if (captions is JsonElement caps &&
+            caps.TryGetProperty("playerCaptionsTracklistRenderer", out var pctr) &&
+            pctr.TryGetProperty("audioTracks", out var audioTracks) &&
+            audioTracks.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var track in audioTracks.EnumerateArray())
+            {
+                if (!track.TryGetProperty("audioTrackId", out var audioTrackIdElement) ||
+                    audioTrackIdElement.GetString() is not { } audioTrackId) continue;
+
+                if (!int.TryParse(audioTrackId.Split('.').LastOrDefault(), out int itag)) continue;
+
+                if (audioStreamsByItag.TryGetValue(itag, out var stream))
                 {
-                    bestAudio = new Stream(url, bitrate);
+                    string lang = track.TryGetProperty("languageCode", out var langEl) ? langEl.GetString() ?? "und" : "und";
+                    string name = track.TryGetProperty("displayName", out var nameEl) ? nameEl.GetString() ?? lang : lang;
+                    parsedAudios.Add(new AudioStream(stream.Url, stream.Bitrate, lang, name));
+                    audioStreamsByItag.Remove(itag);
                 }
             }
         }
 
+        foreach (var remainingAudio in audioStreamsByItag.Values.OrderByDescending(a => a.Bitrate))
+        {
+            parsedAudios.Add(new AudioStream(remainingAudio.Url, remainingAudio.Bitrate, "und", "Original"));
+        }
+
         var sortedVideos = videoStreams.Values.OrderByDescending(v => v.Bitrate).ToList();
-        return (sortedVideos, bestAudio);
+        var sortedAudios = parsedAudios.OrderByDescending(a => a.Bitrate).ToList();
+        return (sortedVideos, sortedAudios);
     }
 }

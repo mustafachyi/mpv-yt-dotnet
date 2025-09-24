@@ -5,7 +5,7 @@ namespace MpvYt;
 
 public static class Mpv
 {
-    public static void Launch(PlayerData playerData, VideoStream? videoStream)
+    public static void Launch(string title, VideoStream? video, AudioStream audio)
     {
         string mpvExecutable = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "mpv.exe" : "mpv";
         
@@ -17,20 +17,20 @@ public static class Mpv
             UseShellExecute = false
         };
 
-        processStartInfo.ArgumentList.Add($"--title={playerData.Title}");
+        processStartInfo.ArgumentList.Add($"--title={title}");
         processStartInfo.ArgumentList.Add("--force-media-title= ");
 
-        if (videoStream is not null)
+        if (video is not null)
         {
-            processStartInfo.ArgumentList.Add(videoStream.Url);
-            processStartInfo.ArgumentList.Add($"--audio-file={playerData.Audio.Url}");
-            Console.WriteLine($"Playing: {playerData.Title} [video]");
+            processStartInfo.ArgumentList.Add(video.Url);
+            processStartInfo.ArgumentList.Add($"--audio-file={audio.Url}");
+            Console.WriteLine($"Playing: {title} [{video.Quality} / {audio.Name}]");
         }
         else
         {
-            processStartInfo.ArgumentList.Add(playerData.Audio.Url);
+            processStartInfo.ArgumentList.Add(audio.Url);
             processStartInfo.ArgumentList.Add("--force-window");
-            Console.WriteLine($"Playing: {playerData.Title} [audio only]");
+            Console.WriteLine($"Playing: {title} [audio only / {audio.Name}]");
         }
 
         try

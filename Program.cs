@@ -13,31 +13,33 @@ identifierArgument.AddValidator(result =>
 });
 
 var qualityOption = new Option<string?>(["-q", "--quality"], "Stream quality (e.g., 720p, highest, lowest).");
+var languageOption = new Option<string?>(["-l", "--language"], "Audio language (e.g., en, ja, es).");
 var audioOnlyOption = new Option<bool>(["-a", "--audio"], "Play audio only.");
 
 var rootCommand = new RootCommand("Play YouTube videos in mpv.")
 {
     identifierArgument,
     qualityOption,
+    languageOption,
     audioOnlyOption
 };
 
-rootCommand.SetHandler(async (identifier, quality, audioOnly) =>
+rootCommand.SetHandler(async (identifier, quality, language, audioOnly) =>
 {
     if (audioOnly && !string.IsNullOrWhiteSpace(quality))
     {
         Console.WriteLine("Info: --audio flag is present, --quality flag will be ignored.");
     }
-    await MainLogic(identifier, quality, audioOnly);
-}, identifierArgument, qualityOption, audioOnlyOption);
+    await MainLogic(identifier, quality, language, audioOnly);
+}, identifierArgument, qualityOption, languageOption, audioOnlyOption);
 
 return await rootCommand.InvokeAsync(args);
 
-static async Task MainLogic(string? identifier, string? quality, bool audioOnly)
+static async Task MainLogic(string? identifier, string? quality, string? language, bool audioOnly)
 {
     try
     {
-        string id = identifier ?? await Ui.GetIdentifierFromInputAsync();
+        string id = identifier ?? Ui.GetIdentifierFromInput();
         if (string.IsNullOrWhiteSpace(id))
         {
             Console.Error.WriteLine("Error: No identifier provided.");
@@ -55,7 +57,7 @@ static async Task MainLogic(string? identifier, string? quality, bool audioOnly)
 
         Console.WriteLine($"Fetching video data for '{videoId}'...");
         var playerData = await YouTube.GetPlayerDataAsync(videoId);
-        var selectedStream = await Ui.GetStreamSelectionAsync(playerData, quality, audioOnly);
+        var selectedStream = Ui.GetStreamSelection(playerData, quality, language, audioOnly);
 
         if (selectedStream is null)
         {
@@ -67,10 +69,10 @@ static async Task MainLogic(string? identifier, string? quality, bool audioOnly)
         switch (selectedStream)
         {
             case VideoSelection vs:
-                Mpv.Launch(playerData, vs.Stream);
+                Mpv.Launch(playerData.Title, vs.Video, vs.Audio);
                 break;
-            case AudioSelection:
-                Mpv.Launch(playerData, null);
+            case AudioSelection aud:
+                Mpv.Launch(playerData.Title, null, aud.Audio);
                 break;
         }
     }

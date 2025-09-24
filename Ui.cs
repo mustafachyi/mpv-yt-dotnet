@@ -2,88 +2,116 @@ namespace MpvYt;
 
 public static class Ui
 {
-    public static Task<string> GetIdentifierFromInputAsync()
+    public static string GetIdentifierFromInput()
     {
         Console.Write("Enter YouTube URL or Video ID: ");
-        return Task.FromResult(Console.ReadLine()?.Trim() ?? "");
+        return Console.ReadLine()?.Trim() ?? "";
     }
 
-    public static async Task<StreamSelection?> GetStreamSelectionAsync(PlayerData data, string? qualityPref, bool audioOnly)
+    public static StreamSelection? GetStreamSelection(PlayerData data, string? qualityPref, string? langPref, bool audioOnly)
     {
-        if (audioOnly) return new AudioSelection();
-
-        var videos = data.Videos;
-        if (videos.Count == 0)
+        if (audioOnly)
         {
-            Console.WriteLine("No video streams available, defaulting to audio only.");
-            return new AudioSelection();
+            var audio = SelectAudio(data.Audios, langPref);
+            return audio is not null ? new AudioSelection(audio) : null;
         }
 
-        if (!string.IsNullOrWhiteSpace(qualityPref))
+        if (data.Videos.Count == 0)
         {
-            return SelectStreamFromPreference(videos, qualityPref);
+            Console.WriteLine("No video streams available, attempting audio only.");
+            var audio = SelectAudio(data.Audios, langPref);
+            return audio is not null ? new AudioSelection(audio) : null;
         }
 
-        Console.WriteLine($"Available streams for: {data.Title}");
-        return await SelectStreamInteractiveAsync(videos);
+        var video = SelectVideo(data.Videos, qualityPref);
+        if (video is null) return null;
+
+        var selectedAudio = SelectAudio(data.Audios, langPref);
+        return selectedAudio is not null ? new VideoSelection(video, selectedAudio) : null;
     }
 
-    private static StreamSelection SelectStreamFromPreference(List<VideoStream> videos, string qualityPref)
+    private static VideoStream? SelectVideo(List<VideoStream> videos, string? qualityPref)
     {
-        if (qualityPref.Equals("highest", StringComparison.OrdinalIgnoreCase)) return new VideoSelection(videos[0]);
-        if (qualityPref.Equals("lowest", StringComparison.OrdinalIgnoreCase)) return new VideoSelection(videos[^1]);
+        if (string.IsNullOrWhiteSpace(qualityPref))
+        {
+            Console.WriteLine("Available video qualities:");
+            for (int i = 0; i < videos.Count; i++)
+            {
+                var v = videos[i];
+                string indicator = (i == 0) ? " (highest)" : "";
+                Console.WriteLine($"{i + 1}) {v.Quality}{indicator} ({v.Bitrate / 1000} kbps)");
+            }
+            Console.Write($"Select quality [1-{videos.Count}, default: 1]: ");
+            string? line = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(line)) return videos[0];
+            if (int.TryParse(line, out int choice) && choice >= 1 && choice <= videos.Count)
+            {
+                return videos[choice - 1];
+            }
+            return null;
+        }
+
+        if (qualityPref.Equals("highest", StringComparison.OrdinalIgnoreCase)) return videos[0];
+        if (qualityPref.Equals("lowest", StringComparison.OrdinalIgnoreCase)) return videos[^1];
 
         var match = videos.Find(v => v.Quality.Equals(qualityPref, StringComparison.OrdinalIgnoreCase));
-        if (match is not null)
-        {
-            return new VideoSelection(match);
-        }
+        if (match is not null) return match;
 
         if (!int.TryParse(string.Concat(qualityPref.Where(char.IsDigit)), out int requestedQualityNum))
         {
             Console.WriteLine($"Warning: Could not parse quality '{qualityPref}'. Playing highest available quality ('{videos[0].Quality}') instead.");
-            return new VideoSelection(videos[0]);
+            return videos[0];
         }
 
-        VideoStream closestStream = videos
+        var closestStream = videos
             .OrderBy(v => Math.Abs(int.Parse(string.Concat(v.Quality.Where(char.IsDigit))) - requestedQualityNum))
             .First();
         
         Console.WriteLine($"Warning: Quality '{qualityPref}' not found. Playing closest available quality ('{closestStream.Quality}') instead.");
-        return new VideoSelection(closestStream);
+        return closestStream;
     }
 
-    private static async Task<StreamSelection?> SelectStreamInteractiveAsync(List<VideoStream> videos)
+    private static AudioStream? SelectAudio(List<AudioStream> audios, string? langPref)
     {
-        for (int i = 0; i < videos.Count; i++)
+        if (audios.Count == 1)
         {
-            var video = videos[i];
-            long bitrateKbps = video.Bitrate / 1000;
-            string indicator = (i == 0) ? " (highest)" : "";
-            Console.WriteLine($"{i + 1}) {video.Quality}{indicator} ({bitrateKbps} kbps)");
+            return audios[0];
         }
 
-        int audioIndex = videos.Count + 1;
-        Console.WriteLine($"{audioIndex}) Audio Only");
-        Console.Write($"Select quality [1-{audioIndex}, default: 1]: ");
-
-        string? line = await Task.FromResult(Console.ReadLine());
-
-        if (string.IsNullOrWhiteSpace(line))
+        if (!string.IsNullOrWhiteSpace(langPref))
         {
-            return new VideoSelection(videos[0]);
+            var match = audios.Find(a => a.Language.Equals(langPref, StringComparison.OrdinalIgnoreCase));
+            if (match is not null) return match;
+
+            Console.WriteLine($"Warning: Language '{langPref}' not found. Attempting to fall back to English.");
+            var englishFallback = audios.Find(a => a.Language.Equals("en", StringComparison.OrdinalIgnoreCase));
+            if (englishFallback is not null) return englishFallback;
+
+            Console.WriteLine($"Warning: English track not found. Playing first available track ('{audios[0].Name}').");
+            return audios[0];
         }
 
-        if (int.TryParse(line, out int choice))
+        Console.WriteLine("Available audio languages:");
+        int defaultIndex = 0;
+        var englishIndex = audios.FindIndex(a => a.Language.Equals("en", StringComparison.OrdinalIgnoreCase));
+        if (englishIndex != -1)
         {
-            if (choice >= 1 && choice <= videos.Count)
-            {
-                return new VideoSelection(videos[choice - 1]);
-            }
-            if (choice == audioIndex)
-            {
-                return new AudioSelection();
-            }
+            defaultIndex = englishIndex;
+        }
+
+        for (int i = 0; i < audios.Count; i++)
+        {
+            var a = audios[i];
+            string indicator = (i == defaultIndex) ? " (default)" : "";
+            Console.WriteLine($"{i + 1}) {a.Name} ({a.Language}) ({a.Bitrate / 1000} kbps){indicator}");
+        }
+        Console.Write($"Select language [1-{audios.Count}, default: {defaultIndex + 1}]: ");
+        string? line = Console.ReadLine();
+
+        if (string.IsNullOrWhiteSpace(line)) return audios[defaultIndex];
+        if (int.TryParse(line, out int choice) && choice >= 1 && choice <= audios.Count)
+        {
+            return audios[choice - 1];
         }
         return null;
     }
