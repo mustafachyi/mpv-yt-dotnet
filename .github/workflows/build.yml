@@ -18,16 +18,15 @@ jobs:
       with:
         dotnet-version: '8.0.x'
 
-    - name: Correct Project File for AOT
-      run: |
-        (Get-Content MpvYt.csproj) -replace '<PublishSingleFile>true</PublishSingleFile>', '' | Set-Content MpvYt.csproj
-        (Get-Content MpvYt.csproj) -replace '<PublishReadyToRun>false</PublishReadyToRun>', '' | Set-Content MpvYt.csproj
 
     - name: Publish Native AOT
-      run: dotnet publish -c Release -r win-x64 /p:PublishAot=true /p:TrimMode=full
+      run: dotnet publish -c Release -r win-x64
+
+    - name: Create Release Archive
+      run: Compress-Archive -Path bin/Release/net8.0/win-x64/publish/* -DestinationPath play-win-x64.zip
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: play-win-x64
-        path: bin/Release/net8.0/win-x64/publish/
+        path: play-win-x64.zip
