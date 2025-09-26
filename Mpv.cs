@@ -58,11 +58,17 @@ public static class Mpv
             if (!string.IsNullOrWhiteSpace(thumbnailUrl))
             {
                 processStartInfo.ArgumentList.Add($"--external-file={thumbnailUrl}");
-                processStartInfo.ArgumentList.Add("--audio-display=albumart");
-                processStartInfo.ArgumentList.Add("--vid=1");
+                processStartInfo.ArgumentList.Add("--audio-display=attachment");
+                processStartInfo.ArgumentList.Add("--image-display-duration=inf");
+                processStartInfo.ArgumentList.Add("--force-window=immediate");
+                processStartInfo.ArgumentList.Add("--video-unscaled=yes");
+                processStartInfo.ArgumentList.Add("--terminal=no");
+            }
+            else
+            {
+                processStartInfo.ArgumentList.Add("--force-window");
             }
             
-            processStartInfo.ArgumentList.Add("--force-window");
             Console.WriteLine($"\nPlaying: {title} [Audio only / {audio.Name}]");
         }
 
