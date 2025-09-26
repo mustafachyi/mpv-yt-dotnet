@@ -53,14 +53,11 @@ public static class Mpv
         }
         else
         {
+            processStartInfo.ArgumentList.Add(audio.Url);
+
             if (!string.IsNullOrWhiteSpace(thumbnailUrl))
             {
-                string filter = $"--lavfi-complex=movie='{thumbnailUrl}':loop=0,setpts=N/FRAME_RATE/TB[v];amovie='{audio.Url}'[a]";
-                processStartInfo.ArgumentList.Add(filter);
-            }
-            else
-            {
-                processStartInfo.ArgumentList.Add(audio.Url);
+                processStartInfo.ArgumentList.Add($"--external-file={thumbnailUrl}");
             }
             
             processStartInfo.ArgumentList.Add("--force-window");
