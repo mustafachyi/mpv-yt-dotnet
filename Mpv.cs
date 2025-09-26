@@ -53,12 +53,10 @@ public static class Mpv
         }
         else
         {
-            processStartInfo.ArgumentList.Add(audio.Url);
-
             if (!string.IsNullOrWhiteSpace(thumbnailUrl))
             {
-                processStartInfo.ArgumentList.Add($"--external-file={thumbnailUrl}");
-                processStartInfo.ArgumentList.Add("--audio-display=attachment");
+                processStartInfo.ArgumentList.Add(thumbnailUrl);
+                processStartInfo.ArgumentList.Add($"--audio-file={audio.Url}");
                 processStartInfo.ArgumentList.Add("--image-display-duration=inf");
                 processStartInfo.ArgumentList.Add("--force-window=immediate");
                 processStartInfo.ArgumentList.Add("--video-unscaled=yes");
@@ -66,6 +64,7 @@ public static class Mpv
             }
             else
             {
+                processStartInfo.ArgumentList.Add(audio.Url);
                 processStartInfo.ArgumentList.Add("--force-window");
             }
             
