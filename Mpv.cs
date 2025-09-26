@@ -58,6 +58,8 @@ public static class Mpv
             if (!string.IsNullOrWhiteSpace(thumbnailUrl))
             {
                 processStartInfo.ArgumentList.Add($"--external-file={thumbnailUrl}");
+                processStartInfo.ArgumentList.Add("--audio-display=albumart");
+                processStartInfo.ArgumentList.Add("--vid=1");
             }
             
             processStartInfo.ArgumentList.Add("--force-window");
