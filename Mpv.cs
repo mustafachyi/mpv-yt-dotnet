@@ -55,14 +55,14 @@ public static class Mpv
         {
             if (!string.IsNullOrWhiteSpace(thumbnailUrl))
             {
-                processStartInfo.ArgumentList.Add(thumbnailUrl);
+                string filter = $"--lavfi-complex=movie='{thumbnailUrl}':loop=0 [v] ; amovie='{audio.Url}' [a]";
+                processStartInfo.ArgumentList.Add(filter);
             }
             else
             {
                 processStartInfo.ArgumentList.Add(audio.Url);
             }
             
-            processStartInfo.ArgumentList.Add($"--audio-file={audio.Url}");
             processStartInfo.ArgumentList.Add("--force-window");
             Console.WriteLine($"\nPlaying: {title} [Audio only / {audio.Name}]");
         }
