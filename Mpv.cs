@@ -55,7 +55,7 @@ public static class Mpv
         {
             if (!string.IsNullOrWhiteSpace(thumbnailUrl))
             {
-                string filter = $"--lavfi-complex=movie='{thumbnailUrl}':loop=0 [v] ; amovie='{audio.Url}' [a]";
+                string filter = $"--lavfi-complex=movie='{thumbnailUrl}':loop=0,setpts=N/FRAME_RATE/TB[v];amovie='{audio.Url}'[a]";
                 processStartInfo.ArgumentList.Add(filter);
             }
             else
