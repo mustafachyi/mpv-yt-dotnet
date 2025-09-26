@@ -82,10 +82,10 @@ static async Task MainLogic(string? identifier, string? quality, string? languag
         switch (selectedStream)
         {
             case VideoSelection vs:
-                Mpv.Launch(playerData.Title, vs.Video, vs.Audio);
+                Mpv.Launch(playerData.Title, playerData.ThumbnailUrl, vs.Video, vs.Audio);
                 break;
             case AudioSelection aud:
-                Mpv.Launch(playerData.Title, null, aud.Audio);
+                Mpv.Launch(playerData.Title, playerData.ThumbnailUrl, null, aud.Audio);
                 break;
         }
     }

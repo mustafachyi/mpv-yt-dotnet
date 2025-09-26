@@ -6,7 +6,7 @@ public record VideoStream(string Url, long Bitrate, string Quality) : Stream(Url
 
 public record AudioStream(string Url, long Bitrate, string Language, string Name, bool IsDefault) : Stream(Url, Bitrate);
 
-public record PlayerData(string Title, List<VideoStream> Videos, List<AudioStream> Audios);
+public record PlayerData(string Title, string? ThumbnailUrl, List<VideoStream> Videos, List<AudioStream> Audios);
 
 public abstract record StreamSelection;
 public record VideoSelection(VideoStream Video, AudioStream Audio) : StreamSelection;

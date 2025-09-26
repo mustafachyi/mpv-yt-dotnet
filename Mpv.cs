@@ -27,7 +27,7 @@ public static class Mpv
         return false;
     }
 
-    public static void Launch(string title, VideoStream? video, AudioStream audio)
+    public static void Launch(string title, string? thumbnailUrl, VideoStream? video, AudioStream audio)
     {
         Console.Clear();
         
@@ -43,6 +43,7 @@ public static class Mpv
 
         processStartInfo.ArgumentList.Add($"--title={title}");
         processStartInfo.ArgumentList.Add("--force-media-title= ");
+        processStartInfo.ArgumentList.Add("--keep-open=yes");
 
         if (video is not null)
         {
@@ -52,7 +53,16 @@ public static class Mpv
         }
         else
         {
-            processStartInfo.ArgumentList.Add(audio.Url);
+            if (!string.IsNullOrWhiteSpace(thumbnailUrl))
+            {
+                processStartInfo.ArgumentList.Add(thumbnailUrl);
+            }
+            else
+            {
+                processStartInfo.ArgumentList.Add(audio.Url);
+            }
+            
+            processStartInfo.ArgumentList.Add($"--audio-file={audio.Url}");
             processStartInfo.ArgumentList.Add("--force-window");
             Console.WriteLine($"\nPlaying: {title} [Audio only / {audio.Name}]");
         }

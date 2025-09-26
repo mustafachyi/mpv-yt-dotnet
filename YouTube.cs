@@ -21,6 +21,7 @@ public static partial class YouTube
 
     private static readonly HttpClient HttpClient;
     private const string ApiEndpoint = "https://www.youtube.com/youtubei/v1/player";
+    private const string ThumbnailBaseUrl = "https://img.youtube.com/vi/";
 
     static YouTube()
     {
@@ -51,9 +52,18 @@ public static partial class YouTube
 
     public static async Task<PlayerData> GetPlayerDataAsync(string videoId)
     {
-        var (data, error) = await AttemptExtractionAsync(videoId, Client.Android);
+        var thumbnailTask = GetHighestQualityThumbnailUrlAsync(videoId);
+        var extractionTask = AttemptExtractionAsync(videoId, Client.Android);
 
-        if (data is not null) return data;
+        await Task.WhenAll(thumbnailTask, extractionTask);
+
+        var thumbnailUrl = await thumbnailTask;
+        var (data, error) = await extractionTask;
+
+        if (data is not null)
+        {
+            return data with { ThumbnailUrl = thumbnailUrl };
+        }
 
         bool isLoginOrAgeError = error?.Contains("LOGIN_REQUIRED", StringComparison.OrdinalIgnoreCase) == true ||
                                  error?.Contains("age", StringComparison.OrdinalIgnoreCase) == true;
@@ -61,10 +71,34 @@ public static partial class YouTube
         if (isLoginOrAgeError)
         {
             (data, error) = await AttemptExtractionAsync(videoId, Client.Ios);
-            if (data is not null) return data;
+            if (data is not null)
+            {
+                return data with { ThumbnailUrl = thumbnailUrl };
+            }
         }
 
         throw new YouTubeApiError(error ?? "An unknown error occurred while fetching video data.");
+    }
+
+    private static async Task<string> GetHighestQualityThumbnailUrlAsync(string videoId)
+    {
+        string maxResUrl = $"{ThumbnailBaseUrl}{videoId}/maxresdefault.jpg";
+        
+        using var request = new HttpRequestMessage(HttpMethod.Head, maxResUrl);
+        try
+        {
+            using var response = await HttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            if (response.IsSuccessStatusCode)
+            {
+                return maxResUrl;
+            }
+        }
+        catch (HttpRequestException)
+        {
+            // Network error, fallback to the guaranteed URL.
+        }
+
+        return $"{ThumbnailBaseUrl}{videoId}/hqdefault.jpg";
     }
 
     private static async Task<(PlayerData? Data, string? Error)> AttemptExtractionAsync(string videoId, Client client)
@@ -105,7 +139,7 @@ public static partial class YouTube
                 return (null, "No audio streams available for this video.");
             }
 
-            return (new PlayerData(videoDetails.Title.Trim(), videos, audios), null);
+            return (new PlayerData(videoDetails.Title.Trim(), null, videos, audios), null);
         }
         catch (Exception e)
         {
