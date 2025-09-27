@@ -58,6 +58,7 @@ public static class Mpv
             if (!string.IsNullOrWhiteSpace(thumbnailUrl))
             {
                 processStartInfo.ArgumentList.Add($"--external-file={thumbnailUrl}");
+                processStartInfo.ArgumentList.Add("--vid=1");
                 processStartInfo.ArgumentList.Add("--image-display-duration=inf");
                 processStartInfo.ArgumentList.Add("--force-window=immediate");
                 processStartInfo.ArgumentList.Add("--video-unscaled=yes");
